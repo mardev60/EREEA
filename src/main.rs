@@ -1,3 +1,22 @@
+mod carte;
+
+use carte::{generate_carte, TypeCase};
+
 fn main() {
-    println!("Hello, world!");
+    let largeur_carte = 20;
+    let hauteur_carte = 20;
+    let seed = 123;
+    let carte = generate_carte(largeur_carte, hauteur_carte, seed);
+
+    for ligne in carte {
+        for case in ligne {
+            let symbole = match case {
+                TypeCase::Vide => ' ',
+                TypeCase::Base => 'H',
+                TypeCase::Mur => 'O'
+            };
+            print!("{}", symbole);
+        }
+        println!();
+    }
 }
