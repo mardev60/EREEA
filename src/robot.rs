@@ -1,3 +1,5 @@
+use crate::carte::TypeCase;
+
 pub trait Robot {
     fn get_type(&self) -> TypeCase;
     fn get_position_x(&self) -> usize;
@@ -20,7 +22,7 @@ impl Explorateur {
 
 impl Robot for Explorateur {
     fn get_type(&self) -> TypeCase {
-        TypeCase::Explorateur
+        TypeCase::Explorer
     }
 
     fn get_position_x(&self) -> usize {
@@ -48,7 +50,7 @@ impl Collecteur {
 
 impl Robot for Collecteur {
     fn get_type(&self) -> TypeCase {
-        TypeCase::Collecteur
+        TypeCase::Collector
     }
 
     fn get_position_x(&self) -> usize {
