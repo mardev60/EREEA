@@ -13,7 +13,12 @@ fn main() {
             let symbole = match case {
                 TypeCase::Vide => ' ',
                 TypeCase::Base => 'H',
-                TypeCase::Mur => 'O'
+                TypeCase::Mur => 'O',
+                TypeCase::Mineral => 'M',
+                TypeCase::Energy => 'E',
+                TypeCase::Science => 'S',
+                TypeCase::Collector => 'C',
+                TypeCase::Explorer => 'X'
             };
             print!("{}", symbole);
         }

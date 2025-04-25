@@ -5,7 +5,12 @@ use rand::Rng;
 pub enum TypeCase {
     Vide,
     Base,
-    Mur
+    Mur,
+    Mineral,
+    Energy,
+    Science,
+    Collector,
+    Explorer
 }
 
 pub fn generate_carte(largeur_carte: usize, hauteur_carte: usize, seed: u32) -> Vec<Vec<TypeCase>> {
@@ -23,6 +28,7 @@ pub fn generate_carte(largeur_carte: usize, hauteur_carte: usize, seed: u32) -> 
                 let valeur_bruit = generateur_bruit.get([colonne as f64 / 10.0, ligne as f64 / 10.0]);
                 carte[ligne][colonne] = match valeur_bruit {
                     v if v < -0.34 => TypeCase::Mur,
+                    v if v < -0.2 => TypeCase::Mineral,
                     _ => TypeCase::Vide,
                 };
             }
