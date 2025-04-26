@@ -58,3 +58,14 @@ pub fn generate_carte(largeur_carte: usize, hauteur_carte: usize, seed: u32) -> 
     
     carte
 }
+
+pub fn trouver_position_base(carte: &Vec<Vec<TypeCase>>) -> (usize, usize) {
+    for (i, ligne) in carte.iter().enumerate() {
+        for (j, case) in ligne.iter().enumerate() {
+            if *case == TypeCase::Base {
+                return (i, j);
+            }
+        }
+    }
+    (0, 0)
+}

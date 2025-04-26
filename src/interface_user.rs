@@ -40,13 +40,13 @@ pub fn afficher_interface_jeu(carte_jeu: &Vec<Vec<TypeCase>>, stats_ressources: 
             for case in ligne {
                 let symbole = match case {
                     TypeCase::Vide => ' ',
-                    TypeCase::Base => 'H',
-                    TypeCase::Mur => 'O',
-                    TypeCase::Energy => 'E',
-                    TypeCase::Mineral => 'M',
-                    TypeCase::Science => 'S',
-                    TypeCase::Explorer => 'X',
-                    TypeCase::Collector => 'C',
+                    TypeCase::Base => '🏰',
+                    TypeCase::Mur => '🧱',
+                    TypeCase::Energy => '⚡',
+                    TypeCase::Mineral => '💎',
+                    TypeCase::Science => '🔬',
+                    TypeCase::Explorer => '🚀',
+                    TypeCase::Collector => '🤖',
                 };
                 representation_carte.push(symbole);
             }

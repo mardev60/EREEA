@@ -4,7 +4,7 @@ mod robot;
 mod interface_user;
 mod placement;
 
-use carte::{generate_carte, TypeCase};
+use carte::{generate_carte, TypeCase, trouver_position_base};
 use base::Base;
 use interface_user::afficher_interface_jeu;
 use crossterm::terminal::size;
@@ -12,14 +12,14 @@ use crossterm::terminal::size;
 fn main() {
     // Taille de la carte
     let (width, height) = size().unwrap();
-    let largeur_carte =(width as usize) - 5;
-    let hauteur_carte = (height as usize) - 5;
+    let largeur_carte = width as usize;
+    let hauteur_carte = height as usize;
 
-    let seed = 123;
+    let seed = 1243;
     let carte = generate_carte(largeur_carte, hauteur_carte, seed);
 
-    // todo : trouver la position de la base (qui a été generée par le generateur de carte)
-    let base = Base::init(largeur_carte, hauteur_carte, 10, 10);
+    let (base_x, base_y) = trouver_position_base(&carte);
+    let base = Base::init(largeur_carte, hauteur_carte, base_x, base_y);
     println!("Base: {:?}", base);
 
     
