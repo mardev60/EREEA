@@ -1,33 +1,32 @@
 mod carte;
 mod base;
 mod robot;  
+mod interface_user;
 mod placement;
 
-use carte::{generate_carte, TypeCase};
+use carte::{generate_carte, TypeCase, trouver_position_base};
 use base::Base;
+use interface_user::afficher_interface_jeu;
+use crossterm::terminal::size;
 
 fn main() {
-    let largeur_carte = 20;
-    let hauteur_carte = 20;
-    let seed = 123;
+    // Taille de la carte
+    let (width, height) = size().unwrap();
+    let largeur_carte = width as usize;
+    let hauteur_carte = height as usize;
+
+    let seed = 1243;
     let carte = generate_carte(largeur_carte, hauteur_carte, seed);
-    let base = Base::init(largeur_carte, hauteur_carte, 10, 10);
+
+    let (base_x, base_y) = trouver_position_base(&carte);
+    let base = Base::init(largeur_carte, hauteur_carte, base_x, base_y);
     println!("Base: {:?}", base);
 
-    for ligne in carte {
-        for case in ligne {
-            let symbole = match case {
-                TypeCase::Vide => ' ',
-                TypeCase::Base => 'H',
-                TypeCase::Mur => 'O',
-                TypeCase::Mineral => 'M',
-                TypeCase::Energy => 'E',
-                TypeCase::Science => 'S',
-                TypeCase::Collector => 'C',
-                TypeCase::Explorer => 'X'
-            };
-            print!("{}", symbole);
-        }
-        println!();
+    
+    let stats = "Energy: 555 | Mineral: 100 | Science: 100";
+
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+        afficher_interface_jeu(&carte, stats).unwrap();
     }
 }
