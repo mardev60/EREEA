@@ -1,7 +1,6 @@
 mod carte;
 mod base;
 mod robot;  
-mod placement;
 mod interface_user;
 
 use carte::{generate_carte, TypeCase};
