@@ -16,10 +16,10 @@ fn main() {
     let hauteur_carte = height as usize;
 
     let seed = 1243;
-    let carte = generate_carte(largeur_carte, hauteur_carte, seed);
+    let (carte, known_carte) = generate_carte(largeur_carte, hauteur_carte, seed);
 
     let (base_x, base_y) = trouver_position_base(&carte);
-    let base = Base::init(largeur_carte, hauteur_carte, base_x, base_y);
+    let base = Base::init(largeur_carte, hauteur_carte, base_x, base_y, known_carte.clone());
     println!("Base: {:?}", base);
 
     
@@ -27,6 +27,6 @@ fn main() {
 
     loop {
         std::thread::sleep(std::time::Duration::from_millis(1000));
-        afficher_interface_jeu(&carte, stats).unwrap();
+        afficher_interface_jeu(&known_carte, stats).unwrap();
     }
 }

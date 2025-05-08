@@ -47,6 +47,7 @@ pub fn afficher_interface_jeu(carte_jeu: &Vec<Vec<TypeCase>>, stats_ressources: 
                     TypeCase::Science => '🔬',
                     TypeCase::Explorer => '🚀',
                     TypeCase::Collector => '🤖',
+                    TypeCase::Inconnu => '?',
                 };
                 representation_carte.push(symbole);
             }
