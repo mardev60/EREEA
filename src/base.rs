@@ -1,7 +1,9 @@
 use crate::robot::{Robot, Collecteur, Explorateur};
+use crate::carte::TypeCase;
 use std::fmt;
 
 pub struct Base {
+    pub known_carte: Vec<Vec<TypeCase>>,
     pub ressources: Ressources,
     pub position: Position,
     pub robots: Vec<Box<dyn Robot>>,
@@ -31,8 +33,9 @@ impl fmt::Debug for Base {
 }
 
 impl Base {
-    pub fn init(largeur: usize, hauteur: usize, pos_x: usize, pos_y: usize) -> Self {
+    pub fn init(largeur: usize, hauteur: usize, pos_x: usize, pos_y: usize, known_carte_init: Vec<Vec<TypeCase>>) -> Self {
         let mut base = Base {
+            known_carte: known_carte_init,
             ressources: Ressources {
                 energy: 0,
                 mineral: 0,
