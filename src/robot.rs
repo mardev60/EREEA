@@ -9,6 +9,8 @@ pub trait Robot {
 pub struct Explorateur {
     position_x: usize,
     position_y: usize,
+    largeur_carte: usize,
+    hauteur_carte: usize,
 }
 
 impl Explorateur {
@@ -21,6 +23,8 @@ impl Explorateur {
         Explorateur {
             position_x: x,
             position_y: y,
+            largeur_carte,
+            hauteur_carte,
         }
     }
 }
