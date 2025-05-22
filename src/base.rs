@@ -53,7 +53,7 @@ impl Base {
         base.add_robot(collecteur);
 
         // création et ajout d'un robot explorateur
-        let explorateur = Box::new(Explorateur::new(pos_x, pos_y));
+        let explorateur = Box::new(Explorateur::new(pos_x, pos_y, largeur, hauteur));
         base.add_robot(explorateur);
 
         base
