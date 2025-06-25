@@ -6,10 +6,15 @@ use std::thread;
 use std::time::Duration;
 
 pub trait Robot: Send {
+    /// Détermine le prochain mouvement du robot
     fn next_move(&self);
+    /// Retourne le type du robot (Explorateur ou Collecteur)
     fn get_type(&self) -> TypeCase;
+    /// Retourne la position X actuelle du robot
     fn get_position_x(&self) -> usize;
+    /// Retourne la position Y actuelle du robot
     fn get_position_y(&self) -> usize;
+    /// Indique si le robot est à la base
     fn is_at_base(&self) -> bool;
 }
 
@@ -20,6 +25,7 @@ pub struct Explorateur {
 }
 
 impl Explorateur {
+    /// Crée un nouvel explorateur et lance son thread d'exploration autonome
     pub fn new(
         map_width: usize,
         map_height: usize,
@@ -136,21 +142,26 @@ impl Explorateur {
 }
 
 impl Robot for Explorateur {
+    /// Implémentation vide car le mouvement est géré dans le thread
     fn next_move(&self) {
     }
 
+    /// Retourne le type Explorateur
     fn get_type(&self) -> TypeCase {
         TypeCase::Explorer
     }
 
+    /// Retourne la position X actuelle de l'explorateur
     fn get_position_x(&self) -> usize {
         *self.position_x.lock().unwrap()
     }
 
+    /// Retourne la position Y actuelle de l'explorateur
     fn get_position_y(&self) -> usize {
         *self.position_y.lock().unwrap()
     }
 
+    /// Indique si l'explorateur est à la base
     fn is_at_base(&self) -> bool {
         *self.at_base.lock().unwrap()
     }
@@ -166,6 +177,7 @@ pub struct Collecteur {
 }
 
 impl Collecteur {
+    /// Crée un nouveau collecteur sans thread (version simple)
     pub fn new(x: usize, y: usize) -> Self {
         let collecteur = Collecteur {
             position_x: Arc::new(Mutex::new(x)),
@@ -179,6 +191,7 @@ impl Collecteur {
         collecteur
     }
 
+    /// Crée un nouveau collecteur et lance son thread de collecte autonome
     pub fn new_with_base(x: usize, y: usize, base_ref: Arc<Mutex<Base>>) -> Self {
         let collecteur = Collecteur {
             position_x: Arc::new(Mutex::new(x)),
@@ -376,21 +389,26 @@ impl Collecteur {
 }
 
 impl Robot for Collecteur {
+    /// Implémentation vide car le mouvement est géré dans le thread
     fn next_move(&self) {
     }
 
+    /// Retourne le type Collecteur
     fn get_type(&self) -> TypeCase {
         TypeCase::Collector
     }
 
+    /// Retourne la position X actuelle du collecteur
     fn get_position_x(&self) -> usize {
         *self.position_x.lock().unwrap()
     }
 
+    /// Retourne la position Y actuelle du collecteur
     fn get_position_y(&self) -> usize {
         *self.position_y.lock().unwrap()
     }
 
+    /// Indique si le collecteur est à la base
     fn is_at_base(&self) -> bool {
         *self.at_base.lock().unwrap()
     }
