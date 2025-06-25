@@ -16,7 +16,7 @@ pub fn placer_elements_aleatoires(
         let y = rng.gen_range(0..hauteur_carte);
         
         if carte[y][x] == TypeCase::Vide {
-            carte[y][x] = element.clone(); // Place l'élément sur la carte
+            carte[y][x] = element.clone();
             elements_places += 1;
         }
     }
