@@ -1,10 +1,10 @@
-use crate::robot::{Robot, Collecteur, Explorateur};
 use crate::carte::TypeCase;
+use crate::robot::{Collecteur, Explorateur, Robot};
+use rand::Rng;
+use std::fmt;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
-use rand::Rng;
-use std::fmt;
 
 pub struct Base {
     pub carte_reelle: Arc<Mutex<Vec<Vec<TypeCase>>>>,
@@ -33,7 +33,7 @@ impl fmt::Debug for Base {
         let mineral = self.ressources.mineral.lock().unwrap();
         let science = self.ressources.science.lock().unwrap();
         let robots_count = self.robots.lock().unwrap().len();
-        
+
         f.debug_struct("Base")
             .field("energy", &*energy)
             .field("mineral", &*mineral)
@@ -69,10 +69,7 @@ impl Base {
                 mineral: Arc::clone(&mineral),
                 science: Arc::clone(&science),
             },
-            position: Position {
-                x: pos_x,
-                y: pos_y,
-            },
+            position: Position { x: pos_x, y: pos_y },
         }));
 
         if let Ok(mut base_guard) = base.lock() {
@@ -84,9 +81,9 @@ impl Base {
                 Arc::clone(&base),
             )));
             base_guard.add_robot(Box::new(Collecteur::new_with_base(
-                pos_x, 
-                pos_y, 
-                Arc::clone(&base)
+                pos_x,
+                pos_y,
+                Arc::clone(&base),
             )));
         }
 
@@ -105,7 +102,7 @@ impl Base {
                     let science_val = *base_guard.ressources.science.lock().unwrap();
                     let pos_x = base_guard.position.x;
                     let pos_y = base_guard.position.y;
-                    
+
                     if energy_val >= 5 && mineral_val >= 5 && science_val >= 5 {
                         let mut robots = base_guard.robots.lock().unwrap();
                         if rng.gen_range(0..3) == 0 {
@@ -119,18 +116,22 @@ impl Base {
                             println!("[BASE] Nouvel explorateur créé !");
                         } else {
                             robots.push(Box::new(Collecteur::new_with_base(
-                                pos_x, 
-                                pos_y, 
-                                Arc::clone(&base_thread)
+                                pos_x,
+                                pos_y,
+                                Arc::clone(&base_thread),
                             )));
                             println!("[BASE] Nouveau collecteur créé !");
                         }
                         *base_guard.ressources.energy.lock().unwrap() -= 5;
                         *base_guard.ressources.mineral.lock().unwrap() -= 5;
                         *base_guard.ressources.science.lock().unwrap() -= 5;
-                        
-                        println!("[BASE] Ressources restantes: E:{}, M:{}, S:{}", 
-                                energy_val - 5, mineral_val - 5, science_val - 5);
+
+                        println!(
+                            "[BASE] Ressources restantes: E:{}, M:{}, S:{}",
+                            energy_val - 5,
+                            mineral_val - 5,
+                            science_val - 5
+                        );
                     }
                 }
 
@@ -147,15 +148,24 @@ impl Base {
         match ressource {
             TypeCase::Energy => {
                 *self.ressources.energy.lock().unwrap() += 1;
-                println!("[BASE] +1 Énergie (Total: {})", *self.ressources.energy.lock().unwrap());
+                println!(
+                    "[BASE] +1 Énergie (Total: {})",
+                    *self.ressources.energy.lock().unwrap()
+                );
             }
             TypeCase::Mineral => {
                 *self.ressources.mineral.lock().unwrap() += 1;
-                println!("[BASE] +1 Minerais (Total: {})", *self.ressources.mineral.lock().unwrap());
+                println!(
+                    "[BASE] +1 Minerais (Total: {})",
+                    *self.ressources.mineral.lock().unwrap()
+                );
             }
             TypeCase::Science => {
                 *self.ressources.science.lock().unwrap() += 1;
-                println!("[BASE] +1 Science (Total: {})", *self.ressources.science.lock().unwrap());
+                println!(
+                    "[BASE] +1 Science (Total: {})",
+                    *self.ressources.science.lock().unwrap()
+                );
             }
             _ => (),
         }
@@ -173,7 +183,9 @@ impl Base {
         let mineral = *self.ressources.mineral.lock().unwrap();
         let science = *self.ressources.science.lock().unwrap();
         let robots_count = self.robots.lock().unwrap().len();
-        format!("Energy: {} | Mineral: {} | Science: {} | Robots: {}", 
-                energy, mineral, science, robots_count)
+        format!(
+            "Energy: {} | Mineral: {} | Science: {} | Robots: {}",
+            energy, mineral, science, robots_count
+        )
     }
 }

@@ -1,5 +1,5 @@
-use crate::carte::TypeCase;
 use crate::base::Base;
+use crate::carte::TypeCase;
 use rand::Rng;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -45,7 +45,7 @@ impl Explorateur {
 
         thread::spawn(move || {
             println!("[EXPLORATEUR] Démarrage de l'exploration...");
-            
+
             loop {
                 let x = *position_x.lock().unwrap();
                 let y = *position_y.lock().unwrap();
@@ -76,17 +76,17 @@ impl Explorateur {
                 let can_move = if let Ok(base_guard) = base.try_lock() {
                     if let Ok(known_carte) = base_guard.known_carte.try_lock() {
                         match known_carte[new_y][new_x] {
-                            TypeCase::Mur => false,    
+                            TypeCase::Mur => false,
                             TypeCase::Inconnu => false,
-                            _ => true,                 
+                            _ => true,
                         }
                     } else {
-                        false 
+                        false
                     }
                 } else {
                     false
                 };
-                
+
                 if can_move {
                     *position_x.lock().unwrap() = new_x;
                     *position_y.lock().unwrap() = new_y;
@@ -96,7 +96,9 @@ impl Explorateur {
                 let current_y = *position_y.lock().unwrap();
 
                 if let Ok(base_guard) = base.try_lock() {
-                    let carte_data: Vec<(usize, usize, TypeCase)> = if let Ok(carte_reelle) = base_guard.carte_reelle.try_lock() {
+                    let carte_data: Vec<(usize, usize, TypeCase)> = if let Ok(carte_reelle) =
+                        base_guard.carte_reelle.try_lock()
+                    {
                         let mut data = Vec::new();
                         for dy in -2..=2 {
                             for dx in -2..=2 {
@@ -112,7 +114,9 @@ impl Explorateur {
                                         let new_x = new_x as usize;
                                         let new_y = new_y as usize;
 
-                                        if let Some(case_type) = carte_reelle.get(new_y).and_then(|row| row.get(new_x)) {
+                                        if let Some(case_type) =
+                                            carte_reelle.get(new_y).and_then(|row| row.get(new_x))
+                                        {
                                             data.push((new_x, new_y, case_type.clone()));
                                         }
                                     }
@@ -123,9 +127,9 @@ impl Explorateur {
                     } else {
                         Vec::new()
                     };
-                    
+
                     drop(base_guard);
-                    
+
                     if let Ok(base_guard) = base.try_lock() {
                         for (x, y, case_type) in carte_data {
                             base_guard.mettre_a_jour_carte(x, y, case_type);
@@ -133,7 +137,7 @@ impl Explorateur {
                     }
                 }
 
-                thread::sleep(Duration::from_millis(150)); 
+                thread::sleep(Duration::from_millis(150));
             }
         });
 
@@ -143,8 +147,7 @@ impl Explorateur {
 
 impl Robot for Explorateur {
     /// Implémentation vide car le mouvement est géré dans le thread
-    fn next_move(&self) {
-    }
+    fn next_move(&self) {}
 
     /// Retourne le type Explorateur
     fn get_type(&self) -> TypeCase {
@@ -211,15 +214,15 @@ impl Collecteur {
         thread::spawn(move || {
             println!("[COLLECTEUR] Démarrage de la collecte...");
             let mut rng = rand::thread_rng();
-            
+
             loop {
                 let x = *pos_x.lock().unwrap();
                 let y = *pos_y.lock().unwrap();
                 let is_at_base = *at_base.lock().unwrap();
                 let carrying_res = carrying.lock().unwrap().clone();
-                
+
                 let base_access_result = base.try_lock();
-                
+
                 if let Ok(base_guard) = base_access_result {
                     if carrying_res.is_some() && is_at_base {
                         if let Some(resource) = carrying_res {
@@ -227,43 +230,52 @@ impl Collecteur {
                             *carrying.lock().unwrap() = None;
                             println!("[COLLECTEUR] Ressource déposée à la base");
                         }
-                    }
-                    else if carrying_res.is_none() {
+                    } else if carrying_res.is_none() {
                         let mut resource_pos: Option<(usize, usize, TypeCase)> = None;
-                        
+
                         if let Ok(known_carte) = base_guard.known_carte.try_lock() {
                             for dy in -2..=2 {
                                 for dx in -2..=2 {
                                     let new_x = x as i32 + dx;
                                     let new_y = y as i32 + dy;
-                                    
-                                    if new_x >= 0 && new_y >= 0 
-                                        && new_x < known_carte[0].len() as i32 
-                                        && new_y < known_carte.len() as i32 {
+
+                                    if new_x >= 0
+                                        && new_y >= 0
+                                        && new_x < known_carte[0].len() as i32
+                                        && new_y < known_carte.len() as i32
+                                    {
                                         let new_x = new_x as usize;
                                         let new_y = new_y as usize;
-                                        
+
                                         match known_carte[new_y][new_x] {
-                                            TypeCase::Energy | TypeCase::Mineral | TypeCase::Science => {
-                                                resource_pos = Some((new_x, new_y, known_carte[new_y][new_x].clone()));
+                                            TypeCase::Energy
+                                            | TypeCase::Mineral
+                                            | TypeCase::Science => {
+                                                resource_pos = Some((
+                                                    new_x,
+                                                    new_y,
+                                                    known_carte[new_y][new_x].clone(),
+                                                ));
                                                 break;
                                             }
                                             _ => {}
                                         }
                                     }
                                 }
-                                if resource_pos.is_some() { break; }
+                                if resource_pos.is_some() {
+                                    break;
+                                }
                             }
                         }
-                        
+
                         if let Some((res_x, res_y, resource_type)) = resource_pos {
                             *pos_x.lock().unwrap() = res_x;
                             *pos_y.lock().unwrap() = res_y;
                             *carrying.lock().unwrap() = Some(resource_type);
                             *at_base.lock().unwrap() = false;
-                            
+
                             drop(base_guard);
-                            
+
                             if let Ok(base_guard) = base.try_lock() {
                                 if let Ok(mut carte_reelle) = base_guard.carte_reelle.try_lock() {
                                     carte_reelle[res_y][res_x] = TypeCase::Vide;
@@ -272,15 +284,17 @@ impl Collecteur {
                                     known_carte_mut[res_y][res_x] = TypeCase::Vide;
                                 }
                             }
-                            
-                            println!("[COLLECTEUR] Ressource collectée en ({}, {}) - Retour à la base", res_x, res_y);
-                        }
-                        else {
+
+                            println!(
+                                "[COLLECTEUR] Ressource collectée en ({}, {}) - Retour à la base",
+                                res_x, res_y
+                            );
+                        } else {
                             if let Ok(known_carte) = base_guard.known_carte.try_lock() {
                                 let direction = rng.gen_range(0..4);
                                 let new_x;
                                 let new_y;
-                                
+
                                 match direction {
                                     0 => {
                                         new_x = x;
@@ -295,79 +309,94 @@ impl Collecteur {
                                         new_y = y;
                                     }
                                     _ => {
-                                        new_x = if x < known_carte[0].len() - 1 { x + 1 } else { x };
+                                        new_x = if x < known_carte[0].len() - 1 {
+                                            x + 1
+                                        } else {
+                                            x
+                                        };
                                         new_y = y;
                                     }
                                 }
 
                                 let can_move = match known_carte[new_y][new_x] {
-                                    TypeCase::Mur => false,     
-                                    TypeCase::Inconnu => false, 
-                                    _ => true,                  
+                                    TypeCase::Mur => false,
+                                    TypeCase::Inconnu => false,
+                                    _ => true,
                                 };
-                                
+
                                 if can_move {
                                     *pos_x.lock().unwrap() = new_x;
                                     *pos_y.lock().unwrap() = new_y;
                                 }
                             }
                         }
-                    }
-
-                    else if carrying_res.is_some() {
+                    } else if carrying_res.is_some() {
                         let base_x = base_guard.position.x;
                         let base_y = base_guard.position.y;
-                        
-                        println!("[COLLECTEUR] Retour à la base: position actuelle ({}, {}), base en ({}, {})", x, y, base_x, base_y);
-                        
+
+                        println!(
+                            "[COLLECTEUR] Retour à la base: position actuelle ({}, {}), base en ({}, {})",
+                            x, y, base_x, base_y
+                        );
+
                         let mut new_x = x;
                         let mut new_y = y;
-                        
-                        if x < base_x { new_x = x + 1; }
-                        else if x > base_x { new_x = x - 1; }
-                        else if y < base_y { new_y = y + 1; }
-                        else if y > base_y { new_y = y - 1; }
-                        
+
+                        if x < base_x {
+                            new_x = x + 1;
+                        } else if x > base_x {
+                            new_x = x - 1;
+                        } else if y < base_y {
+                            new_y = y + 1;
+                        } else if y > base_y {
+                            new_y = y - 1;
+                        }
+
                         if let Ok(known_carte) = base_guard.known_carte.try_lock() {
-                            let can_move = if new_x < known_carte[0].len() && new_y < known_carte.len() {
-                                match known_carte[new_y][new_x] {
-                                    TypeCase::Mur => false,       
-                                    TypeCase::Inconnu => false,   
-                                    _ => true,                     
-                                }
-                            } else {
-                                false
-                            };
-                            
+                            let can_move =
+                                if new_x < known_carte[0].len() && new_y < known_carte.len() {
+                                    match known_carte[new_y][new_x] {
+                                        TypeCase::Mur => false,
+                                        TypeCase::Inconnu => false,
+                                        _ => true,
+                                    }
+                                } else {
+                                    false
+                                };
+
                             if can_move {
                                 *pos_x.lock().unwrap() = new_x;
                                 *pos_y.lock().unwrap() = new_y;
                                 println!("[COLLECTEUR] Déplacement vers ({}, {})", new_x, new_y);
-                                
+
                                 if new_x == base_x && new_y == base_y {
                                     *at_base.lock().unwrap() = true;
                                     println!("[COLLECTEUR] Arrivé à la base !");
                                 }
-                            }
-                            else {
+                            } else {
                                 println!("[COLLECTEUR] Chemin bloqué, tentative de contournement");
                                 let directions = [(0, -1), (0, 1), (-1, 0), (1, 0)];
                                 for (dx, dy) in directions.iter() {
                                     let alt_x_i32 = x as i32 + dx;
                                     let alt_y_i32 = y as i32 + dy;
-                                    
-                                    if alt_x_i32 >= 0 && alt_y_i32 >= 0 
-                                        && alt_x_i32 < known_carte[0].len() as i32 
-                                        && alt_y_i32 < known_carte.len() as i32 {
+
+                                    if alt_x_i32 >= 0
+                                        && alt_y_i32 >= 0
+                                        && alt_x_i32 < known_carte[0].len() as i32
+                                        && alt_y_i32 < known_carte.len() as i32
+                                    {
                                         let alt_x = alt_x_i32 as usize;
                                         let alt_y = alt_y_i32 as usize;
-                                        
+
                                         match known_carte[alt_y][alt_x] {
                                             TypeCase::Mur | TypeCase::Inconnu => continue,
                                             _ => {
                                                 *pos_x.lock().unwrap() = alt_x;
                                                 *pos_y.lock().unwrap() = alt_y;
-                                                println!("[COLLECTEUR] Contournement vers ({}, {})", alt_x, alt_y);
+                                                println!(
+                                                    "[COLLECTEUR] Contournement vers ({}, {})",
+                                                    alt_x, alt_y
+                                                );
                                                 break;
                                             }
                                         }
@@ -379,7 +408,7 @@ impl Collecteur {
                 } else {
                     println!("[COLLECTEUR] Impossible d'accéder à la base, attente...");
                 }
-                
+
                 thread::sleep(Duration::from_millis(300));
             }
         });
@@ -390,8 +419,7 @@ impl Collecteur {
 
 impl Robot for Collecteur {
     /// Implémentation vide car le mouvement est géré dans le thread
-    fn next_move(&self) {
-    }
+    fn next_move(&self) {}
 
     /// Retourne le type Collecteur
     fn get_type(&self) -> TypeCase {
