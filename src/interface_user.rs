@@ -1,11 +1,11 @@
 use crate::carte::TypeCase;
 use crate::robot::Robot;
 use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
     layout::{Constraint, Direction, Layout},
     style::{Color, Style},
     widgets::{Block, Borders, Paragraph},
-    Terminal,
 };
 use std::io;
 use std::sync::{Arc, Mutex};
@@ -22,13 +22,10 @@ pub fn afficher_interface_jeu(
     terminal.draw(|frame| {
         let dimensions = frame.area();
         let hauteur_carte = dimensions.height.saturating_sub(5);
-        
+
         let zones = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Length(hauteur_carte)
-            ].as_ref())
+            .constraints([Constraint::Length(3), Constraint::Length(hauteur_carte)].as_ref())
             .split(dimensions);
 
         let widget_ressources = Paragraph::new(stats_ressources)
@@ -45,10 +42,10 @@ pub fn afficher_interface_jeu(
 
         if let Ok(robots_guard) = robots.lock() {
             for robot in robots_guard.iter() {
-                let x = robot.get_position_x();
-                let y = robot.get_position_y();
-                if y < carte_affichage.len() && x < carte_affichage[0].len() {
-                    carte_affichage[y][x] = robot.get_type();
+                if let (Ok(x), Ok(y)) = (robot.get_position_x(), robot.get_position_y()) {
+                    if y < carte_affichage.len() && x < carte_affichage[0].len() {
+                        carte_affichage[y][x] = robot.get_type();
+                    }
                 }
             }
         }
