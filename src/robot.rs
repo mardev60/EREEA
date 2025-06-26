@@ -5,23 +5,40 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+#[derive(Debug, Clone)]
+pub struct RobotState {
+    pub position_x: usize,
+    pub position_y: usize,
+    pub at_base: bool,
+    pub carrying_resource: Option<TypeCase>,
+}
+
+impl RobotState {
+    pub fn new(x: usize, y: usize) -> Self {
+        Self {
+            position_x: x,
+            position_y: y,
+            at_base: true,
+            carrying_resource: None,
+        }
+    }
+}
+
 pub trait Robot: Send {
     /// Détermine le prochain mouvement du robot
     fn next_move(&self);
     /// Retourne le type du robot (Explorateur ou Collecteur)
     fn get_type(&self) -> TypeCase;
     /// Retourne la position X actuelle du robot
-    fn get_position_x(&self) -> usize;
+    fn get_position_x(&self) -> Result<usize, String>;
     /// Retourne la position Y actuelle du robot
-    fn get_position_y(&self) -> usize;
+    fn get_position_y(&self) -> Result<usize, String>;
     /// Indique si le robot est à la base
-    fn is_at_base(&self) -> bool;
+    fn is_at_base(&self) -> Result<bool, String>;
 }
 
 pub struct Explorateur {
-    position_x: Arc<Mutex<usize>>,
-    position_y: Arc<Mutex<usize>>,
-    at_base: Arc<Mutex<bool>>,
+    state: Arc<Mutex<RobotState>>,
 }
 
 impl Explorateur {
@@ -34,21 +51,24 @@ impl Explorateur {
         base_ref: Arc<Mutex<Base>>,
     ) -> Self {
         let explorateur = Explorateur {
-            position_x: Arc::new(Mutex::new(x)),
-            position_y: Arc::new(Mutex::new(y)),
-            at_base: Arc::new(Mutex::new(true)),
+            state: Arc::new(Mutex::new(RobotState::new(x, y))),
         };
 
-        let position_x = Arc::clone(&explorateur.position_x);
-        let position_y = Arc::clone(&explorateur.position_y);
+        let state = Arc::clone(&explorateur.state);
         let base = Arc::clone(&base_ref);
 
         thread::spawn(move || {
             println!("[EXPLORATEUR] Démarrage de l'exploration...");
 
             loop {
-                let x = *position_x.lock().unwrap();
-                let y = *position_y.lock().unwrap();
+                let (x, y) = match state.lock() {
+                    Ok(robot_state) => (robot_state.position_x, robot_state.position_y),
+                    Err(_) => {
+                        println!("[EXPLORATEUR] Erreur d'accès à l'état du robot");
+                        thread::sleep(Duration::from_millis(150));
+                        continue;
+                    }
+                };
                 let mut rng = rand::thread_rng();
                 let direction = rng.gen_range(0..4);
 
@@ -75,11 +95,7 @@ impl Explorateur {
 
                 let can_move = if let Ok(base_guard) = base.try_lock() {
                     if let Ok(known_carte) = base_guard.known_carte.try_lock() {
-                        match known_carte[new_y][new_x] {
-                            TypeCase::Mur => false,
-                            TypeCase::Inconnu => false,
-                            _ => true,
-                        }
+                        !matches!(known_carte[new_y][new_x], TypeCase::Mur | TypeCase::Inconnu)
                     } else {
                         false
                     }
@@ -88,25 +104,31 @@ impl Explorateur {
                 };
 
                 if can_move {
-                    *position_x.lock().unwrap() = new_x;
-                    *position_y.lock().unwrap() = new_y;
+                    if let Ok(mut robot_state) = state.lock() {
+                        robot_state.position_x = new_x;
+                        robot_state.position_y = new_y;
+                    }
                 }
 
-                let current_x = *position_x.lock().unwrap();
-                let current_y = *position_y.lock().unwrap();
+                let (current_x, current_y) = match state.lock() {
+                    Ok(robot_state) => (robot_state.position_x, robot_state.position_y),
+                    Err(_) => {
+                        thread::sleep(Duration::from_millis(150));
+                        continue;
+                    }
+                };
 
                 if let Ok(base_guard) = base.try_lock() {
-                    let carte_data: Vec<(usize, usize, TypeCase)> = if let Ok(carte_reelle) =
-                        base_guard.carte_reelle.try_lock()
-                    {
-                        let mut data = Vec::new();
-                        for dy in -2..=2 {
-                            for dx in -2..=2 {
-                                let new_x = current_x as i32 + dx;
-                                let new_y = current_y as i32 + dy;
+                    let carte_data: Vec<(usize, usize, TypeCase)> =
+                        if let Ok(carte_reelle) = base_guard.carte_reelle.try_lock() {
+                            let mut data = Vec::new();
+                            for dy in -2..=2 {
+                                for dx in -2..=2 {
+                                    let new_x = current_x as i32 + dx;
+                                    let new_y = current_y as i32 + dy;
 
-                                if (dx.abs() + dy.abs()) <= 2 {
-                                    if new_x >= 0
+                                    if (dx.abs() + dy.abs()) <= 2
+                                        && new_x >= 0
                                         && new_y >= 0
                                         && new_x < map_width as i32
                                         && new_y < map_height as i32
@@ -122,11 +144,10 @@ impl Explorateur {
                                     }
                                 }
                             }
-                        }
-                        data
-                    } else {
-                        Vec::new()
-                    };
+                            data
+                        } else {
+                            Vec::new()
+                        };
 
                     drop(base_guard);
 
@@ -155,26 +176,32 @@ impl Robot for Explorateur {
     }
 
     /// Retourne la position X actuelle de l'explorateur
-    fn get_position_x(&self) -> usize {
-        *self.position_x.lock().unwrap()
+    fn get_position_x(&self) -> Result<usize, String> {
+        self.state
+            .lock()
+            .map(|state| state.position_x)
+            .map_err(|_| "Failed to lock robot state".to_string())
     }
 
     /// Retourne la position Y actuelle de l'explorateur
-    fn get_position_y(&self) -> usize {
-        *self.position_y.lock().unwrap()
+    fn get_position_y(&self) -> Result<usize, String> {
+        self.state
+            .lock()
+            .map(|state| state.position_y)
+            .map_err(|_| "Failed to lock robot state".to_string())
     }
 
     /// Indique si l'explorateur est à la base
-    fn is_at_base(&self) -> bool {
-        *self.at_base.lock().unwrap()
+    fn is_at_base(&self) -> Result<bool, String> {
+        self.state
+            .lock()
+            .map(|state| state.at_base)
+            .map_err(|_| "Failed to lock robot state".to_string())
     }
 }
 
 pub struct Collecteur {
-    position_x: Arc<Mutex<usize>>,
-    position_y: Arc<Mutex<usize>>,
-    at_base: Arc<Mutex<bool>>,
-    carrying_resource: Arc<Mutex<Option<TypeCase>>>,
+    state: Arc<Mutex<RobotState>>,
     base_x: usize,
     base_y: usize,
 }
@@ -182,33 +209,22 @@ pub struct Collecteur {
 impl Collecteur {
     /// Crée un nouveau collecteur sans thread (version simple)
     pub fn new(x: usize, y: usize) -> Self {
-        let collecteur = Collecteur {
-            position_x: Arc::new(Mutex::new(x)),
-            position_y: Arc::new(Mutex::new(y)),
-            at_base: Arc::new(Mutex::new(true)),
-            carrying_resource: Arc::new(Mutex::new(None)),
+        Collecteur {
+            state: Arc::new(Mutex::new(RobotState::new(x, y))),
             base_x: x,
             base_y: y,
-        };
-
-        collecteur
+        }
     }
 
     /// Crée un nouveau collecteur et lance son thread de collecte autonome
     pub fn new_with_base(x: usize, y: usize, base_ref: Arc<Mutex<Base>>) -> Self {
         let collecteur = Collecteur {
-            position_x: Arc::new(Mutex::new(x)),
-            position_y: Arc::new(Mutex::new(y)),
-            at_base: Arc::new(Mutex::new(true)),
-            carrying_resource: Arc::new(Mutex::new(None)),
+            state: Arc::new(Mutex::new(RobotState::new(x, y))),
             base_x: x,
             base_y: y,
         };
 
-        let pos_x = Arc::clone(&collecteur.position_x);
-        let pos_y = Arc::clone(&collecteur.position_y);
-        let at_base = Arc::clone(&collecteur.at_base);
-        let carrying = Arc::clone(&collecteur.carrying_resource);
+        let robot_state = Arc::clone(&collecteur.state);
         let base = Arc::clone(&base_ref);
 
         thread::spawn(move || {
@@ -216,18 +232,29 @@ impl Collecteur {
             let mut rng = rand::thread_rng();
 
             loop {
-                let x = *pos_x.lock().unwrap();
-                let y = *pos_y.lock().unwrap();
-                let is_at_base = *at_base.lock().unwrap();
-                let carrying_res = carrying.lock().unwrap().clone();
+                let (x, y, is_at_base, carrying_res) = match robot_state.lock() {
+                    Ok(state) => (
+                        state.position_x,
+                        state.position_y,
+                        state.at_base,
+                        state.carrying_resource.clone(),
+                    ),
+                    Err(_) => {
+                        println!("[COLLECTEUR] Erreur d'accès à l'état du robot");
+                        thread::sleep(Duration::from_millis(300));
+                        continue;
+                    }
+                };
 
                 let base_access_result = base.try_lock();
 
-                if let Ok(base_guard) = base_access_result {
+                if let Ok(mut base_guard) = base_access_result {
                     if carrying_res.is_some() && is_at_base {
                         if let Some(resource) = carrying_res {
                             base_guard.ajouter_ressource(resource);
-                            *carrying.lock().unwrap() = None;
+                            if let Ok(mut state) = robot_state.lock() {
+                                state.carrying_resource = None;
+                            }
                             println!("[COLLECTEUR] Ressource déposée à la base");
                         }
                     } else if carrying_res.is_none() {
@@ -269,10 +296,12 @@ impl Collecteur {
                         }
 
                         if let Some((res_x, res_y, resource_type)) = resource_pos {
-                            *pos_x.lock().unwrap() = res_x;
-                            *pos_y.lock().unwrap() = res_y;
-                            *carrying.lock().unwrap() = Some(resource_type);
-                            *at_base.lock().unwrap() = false;
+                            if let Ok(mut state) = robot_state.lock() {
+                                state.position_x = res_x;
+                                state.position_y = res_y;
+                                state.carrying_resource = Some(resource_type);
+                                state.at_base = false;
+                            }
 
                             drop(base_guard);
 
@@ -289,44 +318,43 @@ impl Collecteur {
                                 "[COLLECTEUR] Ressource collectée en ({}, {}) - Retour à la base",
                                 res_x, res_y
                             );
-                        } else {
-                            if let Ok(known_carte) = base_guard.known_carte.try_lock() {
-                                let direction = rng.gen_range(0..4);
-                                let new_x;
-                                let new_y;
+                        } else if let Ok(known_carte) = base_guard.known_carte.try_lock() {
+                            let direction = rng.gen_range(0..4);
+                            let new_x;
+                            let new_y;
 
-                                match direction {
-                                    0 => {
-                                        new_x = x;
-                                        new_y = if y > 0 { y - 1 } else { y };
-                                    }
-                                    1 => {
-                                        new_x = x;
-                                        new_y = if y < known_carte.len() - 1 { y + 1 } else { y };
-                                    }
-                                    2 => {
-                                        new_x = if x > 0 { x - 1 } else { x };
-                                        new_y = y;
-                                    }
-                                    _ => {
-                                        new_x = if x < known_carte[0].len() - 1 {
-                                            x + 1
-                                        } else {
-                                            x
-                                        };
-                                        new_y = y;
-                                    }
+                            match direction {
+                                0 => {
+                                    new_x = x;
+                                    new_y = if y > 0 { y - 1 } else { y };
                                 }
+                                1 => {
+                                    new_x = x;
+                                    new_y = if y < known_carte.len() - 1 { y + 1 } else { y };
+                                }
+                                2 => {
+                                    new_x = if x > 0 { x - 1 } else { x };
+                                    new_y = y;
+                                }
+                                _ => {
+                                    new_x = if x < known_carte[0].len() - 1 {
+                                        x + 1
+                                    } else {
+                                        x
+                                    };
+                                    new_y = y;
+                                }
+                            }
 
-                                let can_move = match known_carte[new_y][new_x] {
-                                    TypeCase::Mur => false,
-                                    TypeCase::Inconnu => false,
-                                    _ => true,
-                                };
+                            let can_move = !matches!(
+                                known_carte[new_y][new_x],
+                                TypeCase::Mur | TypeCase::Inconnu
+                            );
 
-                                if can_move {
-                                    *pos_x.lock().unwrap() = new_x;
-                                    *pos_y.lock().unwrap() = new_y;
+                            if can_move {
+                                if let Ok(mut state) = robot_state.lock() {
+                                    state.position_x = new_x;
+                                    state.position_y = new_y;
                                 }
                             }
                         }
@@ -355,24 +383,24 @@ impl Collecteur {
                         if let Ok(known_carte) = base_guard.known_carte.try_lock() {
                             let can_move =
                                 if new_x < known_carte[0].len() && new_y < known_carte.len() {
-                                    match known_carte[new_y][new_x] {
-                                        TypeCase::Mur => false,
-                                        TypeCase::Inconnu => false,
-                                        _ => true,
-                                    }
+                                    !matches!(
+                                        known_carte[new_y][new_x],
+                                        TypeCase::Mur | TypeCase::Inconnu
+                                    )
                                 } else {
                                     false
                                 };
 
                             if can_move {
-                                *pos_x.lock().unwrap() = new_x;
-                                *pos_y.lock().unwrap() = new_y;
-                                println!("[COLLECTEUR] Déplacement vers ({}, {})", new_x, new_y);
-
-                                if new_x == base_x && new_y == base_y {
-                                    *at_base.lock().unwrap() = true;
-                                    println!("[COLLECTEUR] Arrivé à la base !");
+                                if let Ok(mut state) = robot_state.lock() {
+                                    state.position_x = new_x;
+                                    state.position_y = new_y;
+                                    if new_x == base_x && new_y == base_y {
+                                        state.at_base = true;
+                                        println!("[COLLECTEUR] Arrivé à la base !");
+                                    }
                                 }
+                                println!("[COLLECTEUR] Déplacement vers ({}, {})", new_x, new_y);
                             } else {
                                 println!("[COLLECTEUR] Chemin bloqué, tentative de contournement");
                                 let directions = [(0, -1), (0, 1), (-1, 0), (1, 0)];
@@ -391,8 +419,10 @@ impl Collecteur {
                                         match known_carte[alt_y][alt_x] {
                                             TypeCase::Mur | TypeCase::Inconnu => continue,
                                             _ => {
-                                                *pos_x.lock().unwrap() = alt_x;
-                                                *pos_y.lock().unwrap() = alt_y;
+                                                if let Ok(mut state) = robot_state.lock() {
+                                                    state.position_x = alt_x;
+                                                    state.position_y = alt_y;
+                                                }
                                                 println!(
                                                     "[COLLECTEUR] Contournement vers ({}, {})",
                                                     alt_x, alt_y
@@ -427,17 +457,26 @@ impl Robot for Collecteur {
     }
 
     /// Retourne la position X actuelle du collecteur
-    fn get_position_x(&self) -> usize {
-        *self.position_x.lock().unwrap()
+    fn get_position_x(&self) -> Result<usize, String> {
+        self.state
+            .lock()
+            .map(|state| state.position_x)
+            .map_err(|_| "Failed to lock robot state".to_string())
     }
 
     /// Retourne la position Y actuelle du collecteur
-    fn get_position_y(&self) -> usize {
-        *self.position_y.lock().unwrap()
+    fn get_position_y(&self) -> Result<usize, String> {
+        self.state
+            .lock()
+            .map(|state| state.position_y)
+            .map_err(|_| "Failed to lock robot state".to_string())
     }
 
     /// Indique si le collecteur est à la base
-    fn is_at_base(&self) -> bool {
-        *self.at_base.lock().unwrap()
+    fn is_at_base(&self) -> Result<bool, String> {
+        self.state
+            .lock()
+            .map(|state| state.at_base)
+            .map_err(|_| "Failed to lock robot state".to_string())
     }
 }
